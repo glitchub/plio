@@ -1,6 +1,9 @@
-# Python access to /dev/gpiochip* devices
+# Python access to gpio's via /dev/gpiochip* devices.
 
-import os, fcntl
+# Note gpio state will not be retained when the program exits, use gpio_sysfs
+# if you need that.
+
+import os, fcntl, glob
 from ctypes import *
 
 # For debug, dump ctypes.Structure
@@ -40,15 +43,13 @@ class gpiohandle_data(Structure):
 
 # Open and manipulate gpio "line" on gpiochip "chip".
 # Config options are:
-#   output     : if true then configure the gpio as an output, else an input
-#   active_low : if true the the state is inverted relative to gpio input or output signal (i.e. negative logic).
-#   open_drain : if true then the gpio is configured for open_drain, this is hardware dependent
-#   open_drain : if true then the gpio is configured for open_source, this is hardware dependent
-#   state      : if true then the output will be set, if false it is cleared (subject to inversion bu "active_low")
-# Unspecified config options will be False
+#   output     : 0=configure as input, 1=configure as normal output, 2=as open drain output, 3=as open source output
+#   invert     : if true the the state is inverted relative to gpio input or output signal (i.e. negative logic).
+#   state      : if true then the output will be set, if false it is cleared (subject to inversion bu "invert")
+# Unspecified config options are 0/False.
 class gpio():
 
-    def __init__(self, chip, line, active_low=False, open_drain=False, open_source=False, output=False, state=False):
+    def __init__(self, chip, line, invert=False, output=0, state=False):
         self.chip = chip
         self.line = line
 
@@ -61,7 +62,7 @@ class gpio():
 
         # set initial configuration
         self.linefd=None
-        self.configure(active_low=active_low, open_source=open_source, open_drain=open_drain, output=output, state=state)
+        self.configure(invert=invert, output=output, state=state)
 
     def __del__(self):
         # close file handles
@@ -75,18 +76,14 @@ class gpio():
             pass
 
     # Configure gpio, config options as above but if not specified then are not changed
-    def configure(self, active_low=None, open_drain=None, open_source=None, output=None, state=None):
+    def configure(self, invert=None, output=None, state=None):
         # update specified configs
         if output is not None:
-            self.output=bool(output)
+            self.output=int(output)
         if state is not None:
             self.state=bool(state)
-        if active_low is not None:
-            self.active_low=bool(active_low)
-        if open_drain is not None:
-            self.open_drain=bool(open_drain)
-        if open_source is not None:
-            self.open_source=bool(open_source)
+        if invert is not None:
+            self.invert=bool(invert)
 
         # update gpio and get new request handle
         self.gpiohandle_reqest.lineoffsets[0] = self.line
@@ -96,14 +93,12 @@ class gpio():
         # set the flags
         if self.output:
             self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_OUTPUT
+            if self.output == 2: self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_OPEN_DRAIN
+            if self.output == 3: self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_OPEN_SOURCE
         else:
             self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_INPUT
-        if self.active_low:
+        if self.invert:
             self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_ACTIVE_LOW
-        if self.open_drain:
-            self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_OPEN_DRAIN
-        elif self.open_source:
-            self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_OPEN_SOURCE
         # close old handle
         if self.linefd is not None:
             os.close(self.linefd)
@@ -113,11 +108,12 @@ class gpio():
         # update if input
         if not self.output: self.get_input()
 
-    # change gpio to an output and set high or low
+    # change gpio to an normal output and then set high or low
+    # type can be 1, 2 or 3 to set the output type
     def set_output(self, state):
         if not self.output:
             # change to output and set the state
-            self.configure(output=True, state=state)
+            self.configure(output=1, state=state)
         else:
             # already an output, just update the state
             self.state = bool(state)
@@ -128,7 +124,7 @@ class gpio():
     def get_input(self):
         if self.output:
             # change to an input and update the state
-            self.configure(output=False)
+            self.configure(output=0)
         else:
             # already an input, just read current state
             fcntl.ioctl(self.linefd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, self.gpiohandle_data, True)
@@ -137,30 +133,28 @@ class gpio():
 
     # show gpio configuration
     def show(self, label=None):
-        print "gpio %d.%d: output=%s state=%s active_low=%s open_drain=%s open_source=%s" % (
-            self.chip, self.line, self.output, self.state, self.active_low, self.open_drain, self.open_source)
+        print "gpio %d.%d: output=%s state=%s invert=%s" % (
+            self.chip, self.line, self.output, self.state, self.invert)
 
 if __name__ == "__main__":
 
     # Demo for Raspberry Pi 3B
 
-    from time import sleep
-
-    gpio5=gpio(0, 5)    # aka header pin 29
+    gpio5=gpio(0, 5, output=True)   # aka header pin 29
     gpio5.show()
 
-    gpio6=gpio(0, 6)    # aka header pin 31
+    gpio6=gpio(0, 6, output=True)   # aka header pin 31
     gpio6.show()
 
-    gpio7=gpio(0, 7)    # aka header pin 26
+    gpio7=gpio(0, 7, invert=True)   # aka header pin 26
     gpio7.show()
 
-    # inputs float high, sequence gpios 5 and 6 until gpio7 is grounded
-    while gpio7.get_input():
+    # Sequence gpios 5 and 6 until gpio7 is grounded
+    while not gpio7.get_input():
         for n in range(0,4):
-            gpio5.set_output(n&1)
-            gpio6.set_output(n&2)
+            gpio5.set_output(n & 1)
+            gpio6.set_output(n & 2)
 
-    # toggle gpio5 as fast as possible (about 32Khz on an idle system)
+    # Toggle gpio5 as fast as possible
     while True:
         gpio5.set_output(not gpio5.state)
