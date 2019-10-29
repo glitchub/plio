@@ -56,7 +56,7 @@ class gpio():
     # Release the gpio from sysfs, it will revert to default kernel state
     # The gpio instance should then be deleted.
     def release(self):
-        with open(base+"/unexport") as f: f.write("%d\n" % self.line)
+        with open(base+"/unexport","w") as f: f.write("%d\n" % self.line)
         # invalidate this instance
         del self.base
         del self.line
@@ -74,15 +74,23 @@ if __name__ == "__main__":
     gpio7=gpio(7, invert=True)      # aka header pin 26, note input floats high until grounded
     gpio7.show()
 
-    # Sequence gpios 5 and 6 until gpio7 is grounded
-    while not gpio7.get_input():
-        for n in range(0,4):
-            gpio5.set_output(n & 1)
-            gpio6.set_output(n & 2)
+    try:
 
-    gpio5.release(); del gpio5
-    gpio6.release(); del gpio6
+        # Sequence gpios 5 and 6 until gpio7 is grounded
+        while not gpio7.get_input():
+            for n in range(0,4):
+                gpio5.set_output(n & 1)
+                gpio6.set_output(n & 2)
 
-    # Toggle gpio5 as fast as possible
-    while True:
-        gpio5.set_output(not gpio5.state)
+        # Toggle gpio5 as fast as possible
+        while True:
+            gpio5.set_output(not gpio5.state)
+
+    except:
+
+        # Persistent GPIOs in the feature of this module.  But for this demo we
+        # don't want them to persist.
+        gpio5.release()
+        gpio6.release()
+        gpio7.release()
+
