@@ -8,13 +8,22 @@ import os
 base="/sys/class/gpio"
 assert os.path.isdir(base)
 
+# dummy class
+class Default(): pass
+
 # Open and manipulate gpio "line". Options are:
 #   output     : True=gpio is an output, False=gpio is an input, None=use current configuration (or default to input)
 #   invert     : True=gpio is inverted, False=gpio not inverted, None=use current inversion (or default to uninverted)
 #   state      : True=set output high, False=set output low, None=retain current output (ignored if not output)
-# Default for all is FALSE, you must explicity set None to retain the existing state
 class gpio():
-    def __init__(self, line, invert=False, output=False, state=False):
+    default = False # default for unspecified output, invert, or state
+
+    def __init__(self, line, invert=Default, output=Default, state=Default, default=Default):
+        if default is not Default: self.default = default
+        if invert is Default: invert = self.default
+        if output is Default: output = self.default
+        if state is Default: state = self.default
+
         self.line = line
         self.base = base+"/gpio%d" % line
         if not os.path.isdir(self.base):
