@@ -36,14 +36,14 @@ class gpio():
     # Configure gpio, config options as above but if not specified then are not changed
     def configure(self, invert=None, output=None, state=None):
         if invert is not None and invert != self.invert:
-            self.invert=invert
+            self.invert = bool(invert)
             with open(self.base+"/active_low","w") as f: f.write("%d\n" % (1 if self.invert else 0))
         if output is not None and output != self.output:
-            self.output=output
+            self.output = bool(output)
             with open(self.base+"/direction","w") as f: f.write("%s\n" % ("out" if self.output else "in"))
         if self.output:
             if state is not None and state != self.state:
-                self.state = state
+                self.state = bool(state)
                 with open(self.base+"/value","w") as f: f.write("%d\n" % (1 if self.state else 0))
         else:
             with open(self.base+"/value") as f: self.state=bool(int(f.readline()))
