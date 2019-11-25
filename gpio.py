@@ -41,15 +41,15 @@ GPIOHANDLE_SET_LINE_VALUES_IOCTL = 0xC040B409
 class gpiohandle_data(Structure):
     _fields_ = [("values", c_ubyte * GPIOHANDLES_MAX)]      # desired output or current input state (we only use the first one)
 
-# Open and manipulate gpio "line" on gpiochip "chip".
-# Config options are:
-#   output     : 0=configure as input, 1=configure as normal output, 2=as open drain output, 3=as open source output
-#   invert     : if true the the state is inverted relative to gpio input or output signal (i.e. negative logic).
-#   state      : if true then the output will be set, if false it is cleared (subject to inversion bu "invert")
-# Unspecified config options are 0/False.
 class gpio():
 
-    def __init__(self, chip, line, invert=False, output=0, state=False):
+    # Initialize gpio "line" on gpiochip "chip".
+    # Config options are:
+    #   output     : 0=configure as input, 1=configure as normal output, 2=as open drain output, 3=as open source output. Default is 0.
+    #   invert     : if true the the state is inverted relative to gpio input or output signal (i.e. negative logic). Default is False.
+    #   state      : if true then output is set, if false output is cleared. Or just reports current status if input (subject to "invert"). Default is False.
+    # Unspecified options are 0/False.
+    def __init__(self, line, chip=0, invert=False, output=0, state=False):
         self.chip = chip
         self.line = line
 
@@ -62,7 +62,7 @@ class gpio():
 
         # set initial configuration
         self.linefd=None
-        self.configure(invert=invert, output=output, state=state)
+        self.configure(invert=bool(invert), output=int(output), state=bool(state))
 
     def __del__(self):
         # close file handles
@@ -75,15 +75,15 @@ class gpio():
         except:
             pass
 
-    # Configure gpio, config options as above but if not specified then are not changed
+    # Alter gpio output, invert, and state as above, but default None means do not change.
     def configure(self, invert=None, output=None, state=None):
         # update specified configs
+        if invert is not None:
+            self.invert=bool(invert)
         if output is not None:
             self.output=int(output)
         if state is not None:
             self.state=bool(state)
-        if invert is not None:
-            self.invert=bool(invert)
 
         # update gpio and get new request handle
         self.gpiohandle_reqest.lineoffsets[0] = self.line
@@ -139,14 +139,13 @@ class gpio():
 if __name__ == "__main__":
 
     # Demo for Raspberry Pi 3B
-
-    gpio5=gpio(0, 5, output=True)   # aka header pin 29
+    gpio5=gpio(5, output=True)   # aka header pin 29
     gpio5.show()
 
-    gpio6=gpio(0, 6, output=True)   # aka header pin 31
+    gpio6=gpio(6, output=True)   # aka header pin 31
     gpio6.show()
 
-    gpio7=gpio(0, 7, invert=True)   # aka header pin 26
+    gpio7=gpio(7, invert=True)   # aka header pin 26
     gpio7.show()
 
     # Sequence gpios 5 and 6 until gpio7 is grounded
