@@ -1,12 +1,21 @@
 # Python access to gpios via /sys/class/gpio*.
 
-# This is an order of magnitude slower than gpio.py but state is retained after
-# program exit.
+# This is an order of magnitude slower than gpio.py but allows persist gpios
+# after program exit.
 
-import os, re, time
+import os, re, time, atexit
 
 base="/sys/class/gpio"
 assert os.path.isdir(base)
+
+# delete unpersistent gpios on exit
+unpersistent=set()
+def unpersist():
+    for g in unpersistent:
+        with open(base+"/unexport","w") as f:
+            try: f.write("%d" % g)
+            except: pass
+atexit.register(unpersist)
 
 # given a gpiochip index, name, or label, return the appropriate "gpiochipXXX" from the base directory.
 def gpiochip(chip):
@@ -36,7 +45,7 @@ class gpio():
     #   output     : True=gpio is an output, False=gpio is an input, None=use current configuration (default False)
     #   invert     : True=gpio is inverted, False=gpio not inverted, None=use current inversion (default False)
     #   state      : True=set output high, False=set output low, None=retain current output (default False)
-    #   persistent : True=leave gpio configured on object delete, False=unconfigure gpio on object delete (default True)
+    #   persistent : True=leave gpio configured on exit, False=unconfigure gpio on exit (default True)
     # "chip" is a numeric index, a name "gpiochipxxx", or a label.
     # The line number is always 0-based and will be offset to the base of the specified chip.
     def __init__(self, line, chip=0, invert=False, output=False, state=False, persistent=True):
@@ -48,20 +57,13 @@ class gpio():
         if not os.path.isdir(self.base):
             with open(base+"/export","w") as f: f.write("%d\n" % self.line)
             # Sysfs needs some time to respond? This short delay seems to work but YMMV.
-            time.sleep(.1)
+            time.sleep(.05)
         with open(self.base+"/direction") as f: self.output = f.readline().strip() == 'out'
         with open(self.base+"/active_low") as f: self.invert = bool(int(f.readline()))
         with open(self.base+"/value") as f: self.state=bool(int(f.readline()))
-        self.persistent=persistent
+        if persistent: unpersistent.discard(self.line)
+        else: unpersistent.add(self.line)
         self.configure(invert = invert, output = output, state = state)
-
-    # destructor, unexport if not persistent
-    def __del__(self):
-        try:
-            if not self.persistent:
-                with open(base+"/unexport","w") as f:
-                    f.write("%d\n" % self.line)
-        except: pass
 
     # Configure gpio, config options as above but if not specified then are not changed
     def configure(self, invert=None, output=None, state=None):
@@ -91,6 +93,14 @@ class gpio():
     def show(self, label=None):
         if label: print label,
         print "%s %d: output=%s state=%s invert=%s" % (self.gpiochip, self.line, self.output, self.state, self.invert)
+
+    # Release the gpio from sysfs, it will revert to default kernel state
+    # The gpio instance should then be deleted.
+    def release(self):
+        with open(base+"/unexport","w") as f: f.write("%d\n" % self.line)
+        # invalidate this instance
+        del self.base
+        del self.line
 
 if __name__ == "__main__":
 
