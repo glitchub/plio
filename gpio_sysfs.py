@@ -3,7 +3,7 @@
 # This is an order of magnitude slower than gpio.py but state is retained after
 # program exit.
 
-import os, re
+import os, re, time
 
 base="/sys/class/gpio"
 assert os.path.isdir(base)
@@ -47,6 +47,8 @@ class gpio():
         self.base = base+"/gpio%d" % self.line
         if not os.path.isdir(self.base):
             with open(base+"/export","w") as f: f.write("%d\n" % self.line)
+            # Sysfs needs some time to respond? This short delay seems to work but YMMV.
+            time.sleep(.1)
         with open(self.base+"/direction") as f: self.output = f.readline().strip() == 'out'
         with open(self.base+"/active_low") as f: self.invert = bool(int(f.readline()))
         with open(self.base+"/value") as f: self.state=bool(int(f.readline()))
