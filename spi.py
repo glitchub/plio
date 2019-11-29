@@ -1,6 +1,6 @@
 """ SPI control via /dev/spidev* """
 
-import os, struct, fcntl
+import os, fcntl
 from ctypes import *
 
 # This information is from linux/spi/spidev.h
@@ -87,7 +87,7 @@ class spi():
             else:
                 # assume list/tuple
                 size=len(data)
-                buffers.append(create_string_buffer(struct.pack("%dB" % size, *data), size))
+                buffers.append(create_string_buffer(str(bytearray(data), size)))
                 buffer = addressof(buffers[-1])
                 transfers.append(spi_ioc_transfer(buffer, buffer, size, *options))
 

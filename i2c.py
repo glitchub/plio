@@ -1,6 +1,6 @@
 """ Provide access to /dev/i2c-* devices """
 
-import os, struct, fcntl
+import os, fcntl
 from ctypes import *
 
 # This information from linux/i2c-dev.h and linux/i2c.h
@@ -48,19 +48,22 @@ class i2c():
     # Returns a list of lists of read bytes, or [] if no reads requested.
     def io(self, *specs):
         assert 0 < len(specs) <= I2C_RDWR_IOCTL_MAX_MSGS
-        messages=[]
+        buffers=[]  # persistent data buffers
+        messages=[] # messages to be sent
         for n in range(0,len(specs)):
             if specs[n] is None: continue
             if not n & 1:
                 data =specs[n]
                 if type(data) not in (tuple, list): data = [data]
                 size=len(data)
-                buffer = create_string_buffer(struct.pack("%dB" % size,*data),size)
-                messages.append(i2c_msg(addr=self.addr, flags=0, len=size, buf=addressof(buffer)))
+                buffers.append(create_string_buffer(str(bytearray(data)),size))
+                buffer = addressof(buffers[-1])
+                messages.append(i2c_msg(addr=self.addr, flags=0, len=size, buf=addressof(buffers[-1])))
             else:
                 size = int(specs[n])
-                buffer = create_string_buffer(size)
-                messages.append(i2c_msg(addr=self.addr, flags=I2C_M_RD, len=size, buf=addressof(buffer)))
+                buffers.append(create_string_buffer(size))
+                messages.append(i2c_msg(addr=self.addr, flags=I2C_M_RD, len=size, buf=addressof(buffers[-1])))
+
         t = (i2c_msg*len(messages))(*messages)
         fcntl.ioctl(self.fd, I2C_RDWR, i2c_rdwr_ioctl_data(msgs=addressof(t), nmsgs=len(t)), False)
         return map(lambda m:map(ord,list(string_at(m.buf,m.len))),filter(lambda m:m.flags & I2C_M_RD, messages))
