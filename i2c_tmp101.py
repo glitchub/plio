@@ -1,67 +1,79 @@
-""" Driver for TI temperature sensor TMP100/101 """
+# Driver for TI TMP100/101 temperature sensor
 
 from i2c import i2c
 
 # convert hi/low registers to -128.0 to +127.9375 C
-def r2c(h, l):
-    c = h + (l * .00390625)
+def hl2c(hl):
+    c = hl[0] + (hl[1] * .00390625)
     if c >= 128: c = -(c-128)
     return c
 
 # convert -128 to +127.9375C to hi/low registers
-def c2r(c):
+def c2hl(c):
     assert -128 <= c < 128
     c = int(c/.00390625)
-    return c / 256, c & 255
+    return [c / 256, c & 255]
 
 class tmp101():
+
+    # four registers
+    TEMP    = 0
+    CONFIG  = 1
+    LOW     = 2
+    HIGH    = 3
+
     def __init__(self, bus, addr=0x49):
         self.addr = addr
         self.i2c=i2c(bus, addr)
 
-    def get_temperature(self):                  # return temp in centigrade (float)
-        self.i2c.io(0)                          # set pointer register = 0
-        h,l=self.i2c.io(None,2)[0]              # read h and l
-        return r2c(h,l)                         # return degrees C
+    # return temp in centigrade (float)
+    def get_temperature(self):
+        self.i2c.io(self.TEMP)                                  # set pointer register = 0
+        return hl2c(self.i2c.io(None,2)[0])                     # return 2 bytes as centigrade
 
-    def get_config(self):                       # return configuration byte
-        self.i2c.io(1)                          # set pointer register = 1
-        return self.i2c.io(None,1)[0][0]        # return config byte
+    # return configuration byte (and alert status)
+    def get_config(self):
+        self.i2c.io(self.CONFIG)                                # set register pointer
+        return self.i2c.io(None,1)[0][0]                        # return pone byte
 
-    def set_config(self, config):               # set configuration byte
-        self.i2c.io((1,config))                 # write to register 1
+    # set masked configuration bits
+    def set_config(self, mask, value):
+        o = self.get_config()                                   # get current
+        n = (o & ~mask) | (value & mask)                        # alter as required
+        if (n != o):                                            # if actually changed
+            self.i2c.io([self.CONFIG, n])                       # update register
 
-    def get_alert_low(self):                    # get low alert temp in centigrade (float)
-        self.i2c.io(2)                          # set register pointer = 2
-        h,l = self.i2c.io(None,2)[0]            # read h and l
-        return r2c(h,l)                         # return degrees C
+    # get high or low alert temp in centigrade (float)
+    def get_alert(self, reg):
+        assert reg == self.HIGH or reg == self.LOW
+        self.i2c.io(reg)                                        # set register pointer
+        return hl2c(self.i2c.io(None,2)[0])                     # return two bytes as centigrade
 
-    def set_alert_low(self, centigrade):        # set low alert temp in centigrade (float)
-        h,l = c2r(centigrade)                   # convert to h, l
-        self.i2c.io((2,h,l))                    # write to register 2
+    # set high or low low alert temp in centigrade (float)
+    def set_alert(self, reg, centigrade):
+        assert reg == self.HIGH or reg == self.LOW
+        self.i2c.io([reg]+c2hl(centigrade))                     # update register awith two bytes
 
-    def get_alert_high(self):                   # get high alert temp in centigrade (float)
-        self.i2c.io(3)                          # set pointer register = 3
-        h,l = self.i2c.io(None,2)[0]            # read h and l
-        return r2c(h,l)                         # return degrees C
+    # get alert status, or trigger oneshot in shutdown
+    def get_osalert(self)       : return bool(self.get_config() & 0x80)
+    def set_osalert(self,n)     : (self.set_config(0x80, 0x80 if n else 0))
 
-    def set_alert_high(self, centigrade):       # set high alert temp in centigrade (float)
-        h,l = c2r(centigrade)                   # convert to h, l
-        self.i2c.io((3,h,l))                    # write tio register 3
-
-    # get and set various config flags
-    def get_alert(self)         : return bool(self.get_config() & 0x80)
-    def set_alert(self,n)       : self.set_config(self.get_config() | (0x80 if n else 0))
+    # set temperature resolution, affects the conversion time
     def get_resolution(self)    : return (self.get_config() >> 5) & 3
-    def set_resolution(self, n) : self.set_config((self.get_config() & 0x95) | (n << 5))
+    def set_resolution(self, n) : self.set_config(0x60, n << 5)
+
+    # get number of siccessive faults before alert (aka debounce)
     def get_faults(self)        : return (self.get_config() >> 3) & 3
-    def set_faults(self, n)     : self.set_config((self.get_config() & 0xE7) | ((n & 3) << 3))
-    def get_polarity(self)      : return bool(self.get_config() & 4)
-    def set_polarity(self, n)   : self.set_config((self.get_config() & 0xFB) | (4 if n else 0))
-    def get_mode(self)          : return bool(self.get_config() & 2)
-    def set_mode(self, n)       : self.set_config((self.get_config() & 0xFD) | (2 if n else 0))
-    def get_shutdown(self)      : return bool(self.get_config() & 1)
-    def set_shutdown(self, n)   : self.set_config((self.get_config() & 0xFE) | (1 if n else 0))
+    def set_faults(self, n)     : self.set_config(0x18, n << 3)
+
+    def get_polarity(self)      : return bool(self.get_config() & 0x04)
+    def set_polarity(self, n)   : self.set_config(0x04, 0x04 if n else 0)
+
+    def get_mode(self)          : return bool(self.get_config() & 0x02)
+    def set_mode(self, n)       : self.set_config(0x02, 0x02 if n else 0)
+
+    def get_shutdown(self)      : return bool(self.get_config() & 0x01)
+    def set_shutdown(self, n)   : self.set_config(0x01, 0x01 if n else 0)
 
 if __name__ == "__main__":
 
@@ -70,22 +82,28 @@ if __name__ == "__main__":
     # address 0x49 on bus 1
     t = tmp101(1, 0x49)
 
-    # normal mode
-    t.set_mode(0)
+    # reset config to normal thermostat mode
+    t.set_config(0xFF,0)
 
     # output high on alert
     t.set_polarity(True)
 
+    # .0625 degree resolution == 320mS conversion time
+    t.set_resolution(3)
+
+    # 4 faults before alert
+    t.set_faults(2)
+
     # un-alert below 27C
-    t.set_alert_low(27)
+    t.set_alert(t.LOW, 27)
 
-    # alert above 29C
-    t.set_alert_high(29)
+    # alert above 28.5C
+    t.set_alert(t.HIGH, 28.5)
 
-    print "Alert set at", t.get_alert_high(),", resets at", t.get_alert_low()
+    print "Alert set at %gC, resets at %gC" % (t.get_alert(t.HIGH), t.get_alert(t.LOW))
 
     while True:
-        if t.get_alert(): print "ALERT!",
-        print "Temperature =", t.get_temperature()
+        if t.get_osalert(): print "ALERT!",
+        print "Temperature = %gC" % t.get_temperature()
         sleep(1)
 

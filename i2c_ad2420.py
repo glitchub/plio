@@ -1,4 +1,5 @@
-""" Driver for ON N24C02 256 byte serial EEPROM """
+# Driver for Analog Devices AD2420 A2B Transciever
+# At this time just provides basic linkages to master, slave, and peripheral i2c interfaces.
 
 from i2c import i2c
 

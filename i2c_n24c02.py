@@ -1,4 +1,4 @@
-""" Driver for ON N24C02 256 byte serial EEPROM """
+# Driver for ON N24C02 256 byte serial EEPROM
 
 from i2c import i2c
 from time import sleep
@@ -29,7 +29,7 @@ class n24c02():
     def dump(self):
         data = self.read(0, 256)
         for ofs in range(0, 256, 32):
-            print "%02X:" % ofs,            
+            print "%02X:" % ofs,
             print "%02X "*32 % tuple(data[ofs:ofs+32])
 
 if __name__ == "__main__":
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     # device address 0x50 on bus 1
     m = n24c02(1, 0x50)
-    
+
     # erase
     m.write(0, [255]*256)
 
@@ -47,4 +47,4 @@ if __name__ == "__main__":
     m.write(0x80, str(time()))
     m.write(0xFF, 0x5A)
 
-    m.dump()    
+    m.dump()
