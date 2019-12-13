@@ -28,7 +28,7 @@ class ltc2991():
 
     # set control registers with three specified values
     # they are cached so only update if needed
-    def control(self, v1234ctl, v5678ctl, ctl):
+    def __control(self, v1234ctl, v5678ctl, ctl):
         # cache three control registers
         if self.cache is None:
             self.cache = self.i2c.io(self.V1234CTL, 3)
@@ -39,17 +39,24 @@ class ltc2991():
 
     # Trigger channel 0-4 and spin until conversion complete. Channel 0 is
     # internal.
-    def trigger(self, channel):
+    def __trigger(self, channel):
         assert 0 <= channel <= 4
         self.i2c.io([self.TRIGGER, 1<<(channel+3)])
         while self.i2c.io(self.TRIGGER, 1)[0][0] & 4: pass
 
+    # Convert 2-byte sample registers, and uV per step, return voltage.
+    @staticmethod
+    def __uV(hi, lo, uV):
+        n = ((hi << 8) | lo) & 0x3fff           # actual value in low 14 bits
+        if hi & 0x40: n = -1-(n ^ 0x3fff)       # but invert if signed
+        return n * (uV/100000)                  # return microvolts
+
     # Return celsius of temperature input 0 through 4, where 0 is internal temperature, 1 is T1, etc.
     # eta is the sensor diode ideality factor, if None then just use chip's default (1.004)
-    def get_temp(self, input, eta=None):
+    def temperature(self, input, eta=None):
         assert 0 <= input <= 4
-        self.control(0x66, 0x66, 0x04)          # set controls for kelvin
-        self.trigger(input)                     # trigger requested channel
+        self.__control(0x66, 0x66, 0x04)        # set controls for kelvin
+        self.__trigger(input)                   # trigger requested channel
         rreg = [self.TEMP, self.V1_T1, self.V3_T2, self.V5_T3, self.V7_T4][input]
         hi, lo = self.i2c.io(rreg, 2)[0]        # get two byte result
         v = ((hi << 8) + lo) & 0x1fff
@@ -58,32 +65,25 @@ class ltc2991():
         return kelvin - 273.15                  # return celsius
 
     # Return voltage on single-ended input 0 through 8, where 0 is internal VCC, 1 is V1, etc
-    def get_single(self, input):
+    def voltage(self, input):
         assert 0 <= input <= 8
-        self.control(0x00, 0x00, 0x00)          # set controls for single-ended
-        self.trigger(input+1/2)                 # trigger 0->0, 1|2->1, 3|4->2, 5|6->3, 7|8->4
+        self.__control(0x00, 0x00, 0x00)        # set controls for single-ended
+        self.__trigger(input+1/2)               # trigger 0->0, 1|2->1, 3|4->2, 5|6->3, 7|8->4
         rreg = [self.VCC, self.V1_T1, self.V2_D1, self.V3_T2, self.V4_D2, self.V5_T3, self.V6_D3, self.V7_T4, self.V8_D4][input]
         hi, lo = self.i2c.io(rreg, 2)[0]        # get two-byte result
-        v = ((hi << 8) + lo) & 0x3fff
-        return v * 0.00030518                   # 305.18uS per step
+        return self.__uV(hi, lo, 305.18)        # 305.18 uV per step
 
     # Get voltage on differential input 1 through 4
     # 1 is V2-V1, 2 is V4-V3, etc.
-    def get_differential(self, input):
+    def differential(self, input):
         assert 1 <= input <= 4
-        self.control(0x11, 0x11, 0x00)          # set controls for differential
-        self.trigger(input)                     # trigger the requested channel
+        self.__control(0x11, 0x11, 0x00)        # set controls for differential
+        self.__trigger(input)                   # trigger the requested channel
         rreg = [self.V2_D1, self.V4_D2, self.V6_D3, self.V8_D4][input-1]
         hi, lo = self.i2c.io(rreg, 2)[0]        # get two byte result
-        v = ((hi << 8) + lo) & 0x3fff
-        if hi & 0x40:
-            # sign bit
-            return (1+~v) * -.000019075
-        else:
-            # no sign bit
-            return v * .000019075
+        return self.__uV(hi, lo, 19.075)        # 19.075 uV per step
 
 if __name__ == "__main__":
     chip = ltc2991(1, 0x48)
-    print "Ambient = %fC" % chip.get_temp(0)
-    print "VCC = %fV" % (chip.get_single(0)*2,)
+    print "Ambient = %fC" % chip.temperature(0)
+    print "VCC = %fV" % (chip.voltage(0)*2,)
