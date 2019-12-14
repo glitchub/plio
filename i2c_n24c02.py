@@ -1,7 +1,7 @@
 # Driver for ON N24C02 256 byte serial EEPROM
 
 from i2c import i2c
-from time import sleep
+import time
 
 class n24c02():
     def __init__(self, bus, addr=0xa0):
@@ -21,7 +21,7 @@ class n24c02():
         while data:
             chunk = 16 - (offset & 15)  # constrain to 16-byte page
             self.i2c.io([offset]+data[0:chunk])
-            sleep(0.004)                # requires 4mS
+            time.sleep(0.004)           # requires 4mS
             del data[0:chunk]
             offset += chunk
 

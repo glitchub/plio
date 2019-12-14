@@ -37,14 +37,15 @@ class max6639():
         self.cache = {}
 
     # update register with mask and value, and cache it
-    def register(self, reg, mask, value):
+    def __register(self, reg, mask, value):
         if reg not in self.cache: self.cache[reg] = self.i2c.io(reg,1)[0][0]
         v = (self.cache[reg] & ~mask) | value
         if v != self.cache[reg]:
             self.cache[reg] = v
             self.i2c.io([reg, v])
 
-    # reset the device, possibly enable standby, smb timeout, chip temp for channel 2, and hi frequency PWM
+    # reset the device, possibly enable standby, smb timeout, chip temp for
+    # channel 2, and hi frequency PWM
     def reset(self, standby=False, smbto=False, local=False, pwmhi=False):
         self.i2c.io([0x04, 0x40]) # force reset bit
         r=0
@@ -56,28 +57,29 @@ class max6639():
         self.cache = {}
 
     # Given fan index 1 or 2, set pwm frequency 0-3 (table 9), polarity, rate
-    # of change 0-7 (table 5), spinup if fan should start at 100%.
-    # Use this after reset, only if non-defaults are required.
+    # of change 0-7 (table 5), spinup if fan should start at 100%. Use this
+    # after reset, only if non-defaults are required.
     def set_fan_config(self, fan, freq=1, polarity=False, roc=0, spinup=True):
         assert 0 <= freq <= 3
         assert 0 <= roc <= 7
-        self.register(self.CONFIG1(fan), 0x70, roc << 4)
-        self.register(self.CONFIG2A(fan), 0x02, 0x02 if polarity else 0x00)
-        self.register(self.CONFIG3(fan), 0x83, freq | (0x00 if spinup else 0x80))
+        self.__register(self.CONFIG1(fan), 0x70, roc << 4)
+        self.__register(self.CONFIG2A(fan), 0x02, 0x02 if polarity else 0x00)
+        self.__register(self.CONFIG3(fan), 0x83, freq | (0x00 if spinup else 0x80))
 
-    # Set fan 1 or 2 into pwm mode.
-    # duty is the pwm duty cycle, 0 to 100%
+    # Set fan 1 or 2 into pwm mode, with duty cycle 0 to 100%
     def set_pwm_mode(self, fan, duty):
         assert 0 <= duty <= 100
-        self.register(self.CONFIG1(fan), 0x80, 0x80)    # set PWM mode
+        self.__register(self.CONFIG1(fan), 0x80, 0x80)    # set PWM mode
         width=int(round(duty*1.2))                      # convert percent to 120ths
         self.i2c.io([self.DUTY(fan), width])            # set PWM width, DO NOT CACHE
 
     # Set fan 1 or 2 into RPM mode.
     # rpm        = base RPM, 500 to 16000.
     # ppr        = fan tach pulses per revolution, 1 to 4. Default 2.
-    # target     = temperature (of corresponding channel) to maintain, 1 to 255C. Default None, operate in manual mode.
-    # continuous = If true, fan does not stop if temp falls below target. Default False.
+    # target     = temperature (of corresponding channel) to maintain, 1 to
+    #              255C. Default None, operate in manual mode.
+    # continuous = If true, fan does not stop if temp falls below target.
+    #              Default False.
     def set_rpm_mode(self, fan, rpm, ppr=2, target=None, continuous=False):
         assert 500 <= rpm <= 16000
         assert 1 <= ppr <= 4
@@ -91,15 +93,15 @@ class max6639():
         else: self.clock = 3                            # max 16000 rpm
 
         # enable rpm mode
-        self.register(self.START_TACH(fan), 0xFF, (60000<<self.clock)/rpm)          # set start speed
-        self.register(self.PPR(fan), 0xFF, ppr<<6 + 0x1E)                           # ppr and min tach
+        self.__register(self.START_TACH(fan), 0xFF, (60000<<self.clock)/rpm)          # set start speed
+        self.__register(self.PPR(fan), 0xFF, ppr<<6 + 0x1E)                           # ppr and min tach
         if target:
-            self.register(self.CONFIG1(fan), 0x8F, [8,4][fan-1] | self.clock)       # fan monitors temp1, fan2 monitors temp 2
-            self.register(self.START_TEMP(fan), 0xFF, target)                       # set start temperature
-            self.register(self.CONFIG2A(fan), 0x01, 0x01 if continuous else 0x00)   # maybe set continuous run flag
+            self.__register(self.CONFIG1(fan), 0x8F, [8,4][fan-1] | self.clock)       # fan monitors temp1, fan2 monitors temp 2
+            self.__register(self.START_TEMP(fan), 0xFF, target)                       # set start temperature
+            self.__register(self.CONFIG2A(fan), 0x01, 0x01 if continuous else 0x00)   # maybe set continuous run flag
         else:
-            self.register(self.CONFIG1(fan), 0x8F, self.clock)                      # run without monitor
-            self.register(self.CONFIG2A(fan), 0x01, 0x01)                           # continuous
+            self.__register(self.CONFIG1(fan), 0x8F, self.clock)                      # run without monitor
+            self.__register(self.CONFIG2A(fan), 0x01, 0x01)                           # continuous
 
     # Return temp 0 to 255.875 degrees C from indexed channel 1 or 2, or return
     # -1 if diode fault.
@@ -109,8 +111,8 @@ class max6639():
         h = self.i2c.io(self.TEMP(channel),1)[0][0]     # read high from reg 0 or 1
         return h+(float(l>>5)/8)                        # return float
 
-    # Returns current pwm percent and rpm for indexed fan
-    # rpm only valid if fan in rpm mode
+    # Returns current pwm percent and rpm for indexed fan. rpm result is only
+    # valid if fan in rpm mode.
     def get_fan_speed(self, fan):
         pwm=int(round(self.i2c.io(self.DUTY(fan),1)[0][0]/1.2))
         tach = self.i2c.io(self.TACH(fan),1)[0][0]

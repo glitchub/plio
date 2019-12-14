@@ -2,17 +2,6 @@
 
 from i2c import i2c
 
-# convert hi/low registers to -128.0 to +127.9375 C
-def hl2c(hl):
-    c = hl[0] + (hl[1] * .00390625)
-    if c >= 128: c = -(c-128)
-    return c
-
-# convert -128 to +127.9375C to hi/low registers
-def c2hl(c):
-    assert -128 <= c < 128
-    c = int(c/.00390625)
-    return [c / 256, c & 255]
 
 class tmp101():
 
@@ -26,15 +15,30 @@ class tmp101():
         self.addr = addr
         self.i2c=i2c(bus, addr)
 
-    # return temp in centigrade (float)
+    # convert hi/low registers to -128.0 to +127.9375 C
+    @staticmethod
+    def __hl2c(hl):
+        c = hl[0] + ((hl[1] >> 4) * 0.0625)
+        if c >= 128: c = -(256-c)
+        return c
+
+    # convert -128 to +127.9375C to hi/low registers
+    @staticmethod
+    def __c2hl(c):
+        assert -128 <= c < 128
+        if c < 0: c = 256+c
+        c = int(c/.0625)
+        return [c >> 4, (c & 15) << 4]
+
+    # return temp as centigrade (float)
     def get_temperature(self):
         self.i2c.io(self.TEMP)                                  # set pointer register = 0
-        return hl2c(self.i2c.io(None,2)[0])                     # return 2 bytes as centigrade
+        return self.__hl2c(self.i2c.io(None,2)[0])              # return 2 bytes as centigrade
 
     # return configuration byte (and alert status)
     def get_config(self):
         self.i2c.io(self.CONFIG)                                # set register pointer
-        return self.i2c.io(None,1)[0][0]                        # return pone byte
+        return self.i2c.io(None,1)[0][0]                        # return one byte
 
     # set masked configuration bits
     def set_config(self, mask, value):
@@ -47,12 +51,12 @@ class tmp101():
     def get_alert(self, reg):
         assert reg == self.HIGH or reg == self.LOW
         self.i2c.io(reg)                                        # set register pointer
-        return hl2c(self.i2c.io(None,2)[0])                     # return two bytes as centigrade
+        return self.__hl2c(self.i2c.io(None,2)[0])              # return two bytes as centigrade
 
     # set high or low low alert temp in centigrade (float)
     def set_alert(self, reg, centigrade):
         assert reg == self.HIGH or reg == self.LOW
-        self.i2c.io([reg]+c2hl(centigrade))                     # update register awith two bytes
+        self.i2c.io([reg]+self.__c2hl(centigrade))              # update register with two bytes
 
     # get alert status, or trigger oneshot in shutdown
     def get_osalert(self)       : return bool(self.get_config() & 0x80)
