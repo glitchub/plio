@@ -34,11 +34,11 @@ class max6639():
 
     def __init__(self, bus, addr=0x58):
         self.addr = addr
-        self.i2c = i2c(bus, addr)
+        self.i2c = i2c(bus=bus, addr=addr)
         self.cache = {}
 
     # update register with mask and value, and cache it
-    def __register(self, reg, mask, value):
+    def _register(self, reg, mask, value):
         if reg not in self.cache: self.cache[reg] = self.i2c.io(reg,1)[0][0]
         v = (self.cache[reg] & ~mask) | value
         if v != self.cache[reg]:
@@ -63,14 +63,14 @@ class max6639():
     def set_fan_config(self, fan, freq=1, polarity=False, roc=0, spinup=True):
         assert 0 <= freq <= 3
         assert 0 <= roc <= 7
-        self.__register(self.CONFIG1(fan), 0x70, roc << 4)
-        self.__register(self.CONFIG2A(fan), 0x02, 0x02 if polarity else 0x00)
-        self.__register(self.CONFIG3(fan), 0x83, freq | (0x00 if spinup else 0x80))
+        self._register(self.CONFIG1(fan), 0x70, roc << 4)
+        self._register(self.CONFIG2A(fan), 0x02, 0x02 if polarity else 0x00)
+        self._register(self.CONFIG3(fan), 0x83, freq | (0x00 if spinup else 0x80))
 
     # Set fan 1 or 2 into pwm mode, with duty cycle 0 to 100%
     def set_pwm_mode(self, fan, duty):
         assert 0 <= duty <= 100
-        self.__register(self.CONFIG1(fan), 0x80, 0x80)    # set PWM mode
+        self._register(self.CONFIG1(fan), 0x80, 0x80)   # set PWM mode
         width=int(round(duty*1.2))                      # convert percent to 120ths
         self.i2c.io([self.DUTY(fan), width])            # set PWM width, DO NOT CACHE
 
@@ -88,21 +88,21 @@ class max6639():
 
         # Set tach clock frequency 0 to 3 and maxrpm
         self.clock=0
-        if rpm <= 1500: self.clock = 0                  # max 2000 rpm
-        elif rpm <= 3000: self.clock = 1                # max 4000 rpm
-        elif rpm < 6000: self.clock = 2                 # max 8000 rpm
-        else: self.clock = 3                            # max 16000 rpm
+        if rpm <= 1500: self.clock = 0          # max 2000 rpm
+        elif rpm <= 3000: self.clock = 1        # max 4000 rpm
+        elif rpm < 6000: self.clock = 2         # max 8000 rpm
+        else: self.clock = 3                    # max 16000 rpm
 
         # enable rpm mode
-        self.__register(self.START_TACH(fan), 0xFF, (60000<<self.clock)//rpm)         # set start speed
-        self.__register(self.PPR(fan), 0xFF, ppr<<6 + 0x1E)                           # ppr and min tach
+        self._register(self.START_TACH(fan), 0xFF, (60000<<self.clock)//rpm)        # set start speed
+        self._register(self.PPR(fan), 0xFF, ppr<<6 + 0x1E)                          # ppr and min tach
         if target:
-            self.__register(self.CONFIG1(fan), 0x8F, [8,4][fan-1] | self.clock)       # fan monitors temp1, fan2 monitors temp 2
-            self.__register(self.START_TEMP(fan), 0xFF, target)                       # set start temperature
-            self.__register(self.CONFIG2A(fan), 0x01, 0x01 if continuous else 0x00)   # maybe set continuous run flag
+            self._register(self.CONFIG1(fan), 0x8F, [8,4][fan-1] | self.clock)      # fan monitors temp1, fan2 monitors temp 2
+            self._register(self.START_TEMP(fan), 0xFF, target)                      # set start temperature
+            self._register(self.CONFIG2A(fan), 0x01, 0x01 if continuous else 0x00)  # maybe set continuous run flag
         else:
-            self.__register(self.CONFIG1(fan), 0x8F, self.clock)                      # run without monitor
-            self.__register(self.CONFIG2A(fan), 0x01, 0x01)                           # continuous
+            self._register(self.CONFIG1(fan), 0x8F, self.clock)                     # run without monitor
+            self._register(self.CONFIG2A(fan), 0x01, 0x01)                          # continuous
 
     # Return temp 0 to 255.875 degrees C from indexed channel 1 or 2, or return
     # -1 if diode fault.
@@ -123,7 +123,7 @@ class max6639():
 if __name__ == "__main__":
     import time
 
-    chip = max6639(1, 0x58)
+    chip = max6639(bus=1, addr=0x58)
 
     # reset and use local temp as temp2, hi freq PWM
     chip.reset(local=True, pwmhi=True)

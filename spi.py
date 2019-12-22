@@ -41,6 +41,15 @@ SPI_MODE_1                 = 0x01       # SCL is normally low, data samples on t
 SPI_MODE_2                 = 0x02       # SCL is normally high, data samples on leading (falling) edge
 SPI_MODE_3                 = 0x03       # SCL is normally high, data samples on trailing (rising) edgfe
 
+# cast given object to a list of ints, works with python 2 or 3, supports int,
+# bytes, str, bytearray, memoryview, tuple (and list of course)
+def blist(data):
+    if type(data) is int: data=[data]
+    elif type(data) is bytes: data = bytearray(data)
+    elif type(data) is str: data = bytearray(data.encode("utf8"))
+    if type(data) is not list: data=list(data)
+    return data
+
 class spi():
     # Given a bus and chip select number, open SPI device and optionally init
     # various properties via ioctl
@@ -82,7 +91,7 @@ class spi():
                 transfers.append(spi_ioc_transfer(0, buffer, size, *options))
             else:
                 # send list/tuple/bytes/str/bytearray
-                data=self.blist(data)
+                data=blist(data)
                 size=len(data)
                 buffers.append(create_string_buffer(bytes(bytearray(data)), size))
                 buffer = addressof(buffers[-1])
@@ -137,15 +146,6 @@ class spi():
     def set_speed_hz(self, speed_hz):
         u32 = (c_uint*1)(speed_hz)
         fcntl.ioctl(self.fd, SPI_IOC_WR_MAX_SPEED_HZ, u32, False)
-
-    # cast data object to a list of bytes, works with python 2 or 3
-    @staticmethod
-    def blist(data):
-        if type(data) is int: data=[data]
-        elif type(data) is bytes: data = bytearray(data)
-        elif type(data) is str: data = bytearray(data.encode("utf8"))
-        if type(data) is not list: data=list(data)
-        return data
 
 if __name__ == "__main__":
 

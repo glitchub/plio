@@ -1,13 +1,13 @@
 # Driver for ON N24C02 256 byte serial EEPROM
 
 from __future__ import print_function, division
-from i2c import i2c
+from i2c import i2c, blist
 import time
 
 class n24c02():
     def __init__(self, bus, addr=0xa0):
         self.addr = addr
-        self.i2c = i2c(bus,addr)
+        self.i2c = i2c(bus=bus, addr=addr)
 
     # read len bytes from offset
     def read(self, offset, len=1):
@@ -16,7 +16,7 @@ class n24c02():
 
     # write data to offset
     def write(self, offset, data):
-        data = self.i2c.blist(data)    
+        data = blist(data)              # convert data to list of ints
         assert offset >= 0 and len(data) >= 1 and offset + len(data) <= 256
         while data:
             chunk = 16 - (offset & 15)  # constrain to 16-byte page
@@ -32,10 +32,10 @@ class n24c02():
             print("%02X:" % ofs, "%02X "*32 % tuple(data[ofs:ofs+32]))
 
 if __name__ == "__main__":
-    
+
     # device address 0x50 on bus 1
-    m = n24c02(1, 0x50)
-    
+    m = n24c02(bus=1, addr=0x50)
+
     # erase
     m.write(0, [255]*256)
 

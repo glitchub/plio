@@ -29,6 +29,15 @@ I2C_RDWR    = 0x0707            # perform combined R/W transfer (one STOP only)
 I2C_RETRIES = 0x0701            # number of times a device address should be polled when not acknowledging
 I2C_TIMEOUT = 0x0702            # set timeout in units of 10 ms
 
+# cast given object to a list of ints, works with python 2 or 3, supports int,
+# bytes, str, bytearray, memoryview, tuple (and list of course)
+def blist(data):
+    if type(data) is int: data=[data]
+    elif type(data) is bytes: data = bytearray(data)
+    elif type(data) is str: data = bytearray(data.encode("utf8"))
+    if type(data) is not list: data=list(data)
+    return data
+
 class i2c():
 
     # init i2c controller, note bus == None enables stub operation
@@ -60,7 +69,7 @@ class i2c():
         for n in range(0,len(specs)):
             if specs[n] is None: continue
             if not n & 1:
-                data = self.blist(specs[n])
+                data = blist(specs[n])
                 size = len(data)
                 wbufs.append(create_string_buffer(bytes(bytearray(data)),size))
                 messages.append(i2c_msg(addr=self.addr, flags=0, len=size, buf=addressof(wbufs[-1])))
@@ -91,14 +100,6 @@ class i2c():
     def set_timeout(self, n):
         fcntl.ioctl(self.fd, I2C_TIMEOUT, c_uint(n), False)
 
-    # cast data object to a list of bytes, works with python 2 or 3
-    @staticmethod
-    def blist(data):
-        if type(data) is int: data=[data]
-        elif type(data) is bytes: data = bytearray(data)
-        elif type(data) is str: data = bytearray(data.encode("utf8"))
-        if type(data) is not list: data=list(data)
-        return data
 
 if __name__ == "__main__":
 

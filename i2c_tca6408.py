@@ -6,20 +6,20 @@ from i2c import i2c
 class tca6408:
 
     # Registers have one bit per pin
-    IN  = 0 # 1 = input pin is logic high
-    OUT = 1 # 1 = output pin is logic high
-    INV = 2 # 1 = pin logical state is inverse of physicall
-    DIR = 3 # 1 = pin is input
+    IN  = 0     # 1 = input pin is logic high
+    OUT = 1     # 1 = output pin is logic high
+    INV = 2     # 1 = pin logical state is inverse of physicall
+    DIR = 3     # 1 = pin is input
 
     # Create a tca6408 object with given bus and slave address
     def __init__(self, bus, addr=0x20):
         self.addr = addr
-        self.i2c = i2c(bus, addr)
+        self.i2c = i2c(bus=bus, addr=addr)
         self.cache = {}
 
     # Set or clear masked bits in specified register to specified value
     # Values are cached!
-    def __register(self, reg, mask, value):
+    def _register(self, reg, mask, value):
         assert 1 <= reg <= 3 and 1 <= mask <= 0xff
         if reg not in self.cache: self.cache[reg] = self.i2c.io(reg,1)[0][0]
         r = (self.cache[reg] & ~mask) | (value & mask)
@@ -29,38 +29,38 @@ class tca6408:
 
     # change masked gpios to inputs and return their states
     def input(self, mask):
-        self.__register(self.DIR, mask, mask)           # change to inputs
+        self._register(self.DIR, mask, mask)           # change to inputs
         return self.i2c.io([self.IN, 1])[0][0] & mask   # return masked states
 
     # change masked gpios to outputs and set them to specified state.
     def output(self, mask, states):
-        self.__register(self.DIR, mask, 0)              # change to outputs
-        self.__register(self.OUT, mask, states)         # set masked states
+        self._register(self.DIR, mask, 0)              # change to outputs
+        self._register(self.OUT, mask, states)         # set masked states
 
     # set inversion for masked gpios (whether input or output)
     def invert(self, mask, states):
-        self.__register(self.INV, mask, states)         # set inversion states
+        self._register(self.INV, mask, states)         # set inversion states
 
     # reset to HI-Z, disable inversion
     def reset(self):
         self.input(0xFF)
         self.invert(0xFF, 0x00)
 
-    # private gpio class
-    class __gpio:
-        def __init__(self, tca6408, gpio):
+    # class for a single gpio
+    class _gpio:
+        def __init__(self, parent, gpio):
             assert 0 <= gpio <= 7
             self.gpio = 1 << gpio
-            self.tca6408 = tca6408
-        def output(self, state): self.tca6408.output(self.gpio, 0xFF if state else 0)   # Change the gpio to output and set its state
-        def input(self): return bool(self.tca6408.input(self.gpio))                     # Change the gpio to input and return its state
-        def invert(self, state): self.tca6408.invert(self.gpio, 0xFF if state else 0)   # Set the gpio inversion
+            self.parent = parent
+        def output(self, state): self.parent.output(self.gpio, 0xFF if state else 0)   # Change the gpio to output and set its state
+        def input(self): return bool(self.parent.input(self.gpio))                     # Change the gpio to input and return its state
+        def invert(self, state): self.parent.invert(self.gpio, 0xFF if state else 0)   # Set the gpio inversion
 
-    # return a __gpio for specified gpio number 0-7
-    def gpio(self, gpio): return self.__gpio(self, gpio)
+    # return a _gpio for specified gpio number 0-7
+    def gpio(self, gpio): return self._gpio(self, gpio)
 
 if __name__ == "__main__":
-    chip = tca6408(0x21)
+    chip = tca6408(bus=1, addr=0x21)
     chip.reset()
 
     # show current input states
