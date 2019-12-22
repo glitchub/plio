@@ -5,6 +5,7 @@
 #   set_fan_ config() for each fan
 #   set_pwm_mode() or set_rpm_mode() for each fan.
 
+from __future__ import print_function, division
 from i2c import i2c
 
 class max6639():
@@ -93,7 +94,7 @@ class max6639():
         else: self.clock = 3                            # max 16000 rpm
 
         # enable rpm mode
-        self.__register(self.START_TACH(fan), 0xFF, (60000<<self.clock)/rpm)          # set start speed
+        self.__register(self.START_TACH(fan), 0xFF, (60000<<self.clock)//rpm)         # set start speed
         self.__register(self.PPR(fan), 0xFF, ppr<<6 + 0x1E)                           # ppr and min tach
         if target:
             self.__register(self.CONFIG1(fan), 0x8F, [8,4][fan-1] | self.clock)       # fan monitors temp1, fan2 monitors temp 2
@@ -109,14 +110,14 @@ class max6639():
         l = self.i2c.io(self.XTEMP(channel),1)[0][0]    # read low first from reg 5 or 6
         if l & 1: return -1                             # diode fault?
         h = self.i2c.io(self.TEMP(channel),1)[0][0]     # read high from reg 0 or 1
-        return h+(float(l>>5)/8)                        # return float
+        return h+((l>>5)/8)                             # return float
 
     # Returns current pwm percent and rpm for indexed fan. rpm result is only
     # valid if fan in rpm mode.
     def get_fan_speed(self, fan):
         pwm=int(round(self.i2c.io(self.DUTY(fan),1)[0][0]/1.2))
         tach = self.i2c.io(self.TACH(fan),1)[0][0]
-        rpm = (60000 << self.clock)/tach if tach else 0
+        rpm = (60000 << self.clock)//tach if tach else 0
         return (pwm,rpm)
 
 if __name__ == "__main__":
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     # reset and use local temp as temp2, hi freq PWM
     chip.reset(local=True, pwmhi=True)
 
-    print "Device ID = 0x%02X, manufacturer = 0x%02X, revision = 0x%02X" % tuple(chip.i2c.io(chip.ID,3)[0])
+    print("Device ID = 0x%02X, manufacturer = 0x%02X, revision = 0x%02X" % tuple(chip.i2c.io(chip.ID,3)[0]))
 
     # run fan 1 at 50% duty
     chip.set_pwm_mode(1, 50)
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     chip.set_rpm_mode(2, 2000, target=25)
 
     while True:
-        print "Temp = %fC, %fC" % (chip.get_temp(1), chip.get_temp(2))
-        print "Fan 1 PWM = %d%%" % chip.get_fan_speed(1)[0]
-        print "Fan 2 PWM = %d%%, RPM = %d" % chip.get_fan_speed(2)
+        print("Temp = %fC, %fC" % (chip.get_temp(1), chip.get_temp(2)))
+        print("Fan 1 PWM = %d%%" % chip.get_fan_speed(1)[0])
+        print("Fan 2 PWM = %d%%, RPM = %d" % chip.get_fan_speed(2))
         time.sleep(1)

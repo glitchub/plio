@@ -1,5 +1,6 @@
 # Driver for ON N24C02 256 byte serial EEPROM
 
+from __future__ import print_function, division
 from i2c import i2c
 import time
 
@@ -15,8 +16,7 @@ class n24c02():
 
     # write data to offset
     def write(self, offset, data):
-        if type(data)==int: data=[data]
-        elif type(data)!=list: data=list(data)
+        data = self.i2c.blist(data)    
         assert offset >= 0 and len(data) >= 1 and offset + len(data) <= 256
         while data:
             chunk = 16 - (offset & 15)  # constrain to 16-byte page
@@ -29,22 +29,20 @@ class n24c02():
     def dump(self):
         data = self.read(0, 256)
         for ofs in range(0, 256, 32):
-            print "%02X:" % ofs,
-            print "%02X "*32 % tuple(data[ofs:ofs+32])
+            print("%02X:" % ofs, "%02X "*32 % tuple(data[ofs:ofs+32]))
 
 if __name__ == "__main__":
-    from time import time
-
+    
     # device address 0x50 on bus 1
     m = n24c02(1, 0x50)
-
+    
     # erase
     m.write(0, [255]*256)
 
     # write stuff
     m.write(0, [1,2,3,4,5])
-    m.write(0x2E, "Hello there, Mister Bill!")
-    m.write(0x80, str(time()))
+    m.write(0x2E, b"Hello there, Mister Bill!")
+    m.write(0x80, str(time.time()))
     m.write(0xFF, 0x5A)
 
     m.dump()

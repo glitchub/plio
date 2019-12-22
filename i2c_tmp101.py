@@ -1,7 +1,7 @@
 # Driver for TI TMP100/101 temperature sensor
 
+from __future__ import print_function, division
 from i2c import i2c
-
 
 class tmp101():
 
@@ -95,8 +95,8 @@ if __name__ == "__main__":
     # .0625 degree resolution == 320mS conversion time
     t.set_resolution(3)
 
-    # 4 faults before alert
-    t.set_faults(2)
+    # alert immediately
+    t.set_faults(0)
 
     # un-alert below 27C
     t.set_alert(t.LOW, 27)
@@ -104,10 +104,10 @@ if __name__ == "__main__":
     # alert above 28.5C
     t.set_alert(t.HIGH, 28.5)
 
-    print "Alert set at %gC, resets at %gC" % (t.get_alert(t.HIGH), t.get_alert(t.LOW))
+    print("Alert set above %gC, reset below %gC" % (t.get_alert(t.HIGH), t.get_alert(t.LOW)))
 
     while True:
-        if t.get_osalert(): print "ALERT!",
-        print "Temperature = %gC" % t.get_temperature()
+        if t.get_osalert(): print("ALERT!", end=" ")
+        print("Temperature = %gC" % t.get_temperature())
         sleep(1)
 

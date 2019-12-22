@@ -3,6 +3,7 @@
 # Note gpio state will not be retained when the program exits, use gpio_sysfs
 # if you need that.
 
+from __future__ import print_function, division
 import os, fcntl, glob
 from ctypes import *
 
@@ -12,7 +13,7 @@ from ctypes import *
 #     for i in struct._fields_:
 #         name=i[0]
 #         field=struct.__class__.__dict__[name]
-#         print "%20s ofs=%04d size=%04d:" % (name,field.offset,field.size)," ".join(map(lambda b:"%02X" % b, bytes[field.offset:field.offset+field.size]))
+#         print("%20s ofs=%04d size=%04d:" % (name,field.offset,field.size)," ".join(map(lambda b:"%02X" % b, bytes[field.offset:field.offset+field.size])))
 
 # This information is from linux/gpiochip.h
 
@@ -133,8 +134,7 @@ class gpio():
 
     # show gpio configuration
     def show(self, label=None):
-        print "gpio %d.%d: output=%s state=%s invert=%s" % (
-            self.chip, self.line, self.output, self.state, self.invert)
+        print("gpio %d.%d: output=%s state=%s invert=%s" % (self.chip, self.line, self.output, self.state, self.invert))
 
 if __name__ == "__main__":
 

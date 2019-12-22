@@ -2,7 +2,7 @@
 
 # This is an order of magnitude slower than gpio.py but allows persist gpios
 # after program exit.
-
+from __future__ import print_function, division
 import os, re, time, atexit
 
 base="/sys/class/gpio"
@@ -20,7 +20,7 @@ atexit.register(unpersist)
 # given a gpiochip index, name, or label, return the appropriate "gpiochipXXX" from the base directory.
 def gpiochip(chip):
 
-    gpiochips=filter(lambda p : os.path.isfile(base+"/%s/base" % p), os.listdir(base))
+    gpiochips=[p for p in os.listdir(base) if os.path.isfile(base+"/%s/base" % p)]
     assert gpiochips
     # if 'chip' is listed, then use as is
     if chip in gpiochips: return chip
@@ -32,7 +32,7 @@ def gpiochip(chip):
             try: return int(s)
             except: return s
         # sort numerically, i.e. gpiochip11 is before chipchip101
-        return sorted(gpiochips, key=lambda p:map(_int,re.split('(\d)+',p)))[chip]
+        return sorted(gpiochips, key=lambda p:list(map(_int,re.split('(\d)+',p))))[chip]
     except ValueError:
         # here, maybe 'chip' is a label
         for g in gpiochips:
@@ -91,8 +91,8 @@ class gpio():
 
     # show gpio configuration
     def show(self, label=None):
-        if label: print label,
-        print "%s %d: output=%s state=%s invert=%s" % (self.gpiochip, self.line, self.output, self.state, self.invert)
+        if label: print(label, end=" ")
+        print("%s %d: output=%s state=%s invert=%s" % (self.gpiochip, self.line, self.output, self.state, self.invert))
 
     # Release the gpio from sysfs, it will revert to default kernel state
     # The gpio instance should then be deleted.

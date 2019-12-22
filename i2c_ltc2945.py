@@ -13,6 +13,7 @@
 #    L     NC  =  6E
 #    L     L   =  6F
 
+from __future__ import print_function, division
 from i2c import i2c
 
 class ltc2945():
@@ -47,7 +48,7 @@ class ltc2945():
     # current assuming nominal 0.02 resistor for range 0 - 5.12 amps.
     def i_sense(self, ohms=.02):
         v = self.convert(0, self.SENSE_MSB) * 0.000025
-        return float(v) / ohms
+        return v / ohms
 
     # Return SENSE+ voltage, 0 to 102.375V volts, aka 25mV per step
     def v_sense(self):
@@ -63,4 +64,4 @@ class ltc2945():
 
 if __name__ == "__main__":
     chip = ltc2945(1, 0x69)
-    print "Input %g volts, %g amps" % (chip.v_sense(), chip.i_sense())
+    print("Input %g volts, %g amps" % (chip.v_sense(), chip.i_sense()))

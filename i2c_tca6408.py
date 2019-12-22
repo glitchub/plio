@@ -1,5 +1,6 @@
 # Driver for TI TCA6408 GPIO expander
 
+from __future__ import print_function, division
 from i2c import i2c
 
 class tca6408:
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     chip.reset()
 
     # show current input states
-    print "Inputs = 0x02X" % chip.input(0xFF)
+    print("Inputs = 0x02X" % chip.input(0xFF))
 
     # fiddle with discrete gpios
     g0=chip.gpio(0)             # g0 is pin 0
@@ -73,4 +74,4 @@ if __name__ == "__main__":
     g0.output(0)                # set g0
     g1.invert(1)                # invert g1
     g1.output(1)                # clear g1, which actually sets it
-    print "g2 is ",g2.input()   # report g2
+    print("g2 is ",g2.input())  # report g2

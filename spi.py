@@ -1,5 +1,6 @@
 """ SPI control via /dev/spidev* """
 
+from __future__ import print_function, division
 import os, fcntl
 from ctypes import *
 
@@ -53,7 +54,6 @@ class spi():
     # Given one or more spi transfer specifications, perform an atomic SPI
     # transaction. Each spec can be:
     #   an int, send that many zeros (in order to read the response)
-    #   a string, the send the string bytes
     #   a list, send the byte values
     #   a dict, key "data" is one of the above, and the rest are optional:
     #       "speed_hz":       # 32 bits, override SPI clock speed
@@ -74,20 +74,17 @@ class spi():
                 data=s
                 options=[0, 0, 0, 0, 0, 0]
 
-            if type(data) == int:
+            if type(data) is int:
+                # single byte, just read that many
                 size=data
                 buffers.append(create_string_buffer(size))
                 buffer = addressof(buffers[-1])
                 transfers.append(spi_ioc_transfer(0, buffer, size, *options))
-            elif type(data) == str:
-                size=len(data)
-                buffers.append(create_string_buffer(data, size))
-                buffer = addressof(buffers[-1])
-                transfers.append(spi_ioc_transfer(buffer, buffer, size, *options))
             else:
-                # assume list/tuple
+                # send list/tuple/bytes/str/bytearray
+                data=self.blist(data)
                 size=len(data)
-                buffers.append(create_string_buffer(str(bytearray(data), size)))
+                buffers.append(create_string_buffer(bytes(bytearray(data)), size))
                 buffer = addressof(buffers[-1])
                 transfers.append(spi_ioc_transfer(buffer, buffer, size, *options))
 
@@ -95,7 +92,7 @@ class spi():
         fcntl.ioctl(self.fd, SPI_IOC_MESSAGE(len(t)), t, False)
 
         # collect the responses
-        return map(lambda m:map(ord, list(m.raw)), buffers)
+        return [list(bytearray(m.raw)) for m in buffers]
 
     # return the spi transfer mode 0-3
     def get_spi_mode(self):
@@ -117,7 +114,6 @@ class spi():
     # enable LSB first or MSB first
     def set_lsb_first(self, lsb_first):
         u8 = (c_ubyte*1)(1 if lsb_first else 0)
-        print "setting ",u8[0]
         fcntl.ioctl(self.fd, SPI_IOC_WR_LSB_FIRST, u8, False)
 
     # get number of bits per word
@@ -142,6 +138,14 @@ class spi():
         u32 = (c_uint*1)(speed_hz)
         fcntl.ioctl(self.fd, SPI_IOC_WR_MAX_SPEED_HZ, u32, False)
 
+    # cast data object to a list of bytes, works with python 2 or 3
+    @staticmethod
+    def blist(data):
+        if type(data) is int: data=[data]
+        elif type(data) is bytes: data = bytearray(data)
+        elif type(data) is str: data = bytearray(data.encode("utf8"))
+        if type(data) is not list: data=list(data)
+        return data
 
 if __name__ == "__main__":
 
@@ -150,15 +154,15 @@ if __name__ == "__main__":
     # open gizmo on spidev0.0, clock at 125KHz
     gizmo=spi(0, 0, spi_mode=SPI_MODE_1, bits_per_word=8, lsb_first=False, speed_hz=125000)
 
-    print "spi_mode      =",gizmo.get_spi_mode()
-    print "lsb_first     =",gizmo.get_lsb_first()
-    print "bits_per_word =",gizmo.get_bits_per_word()
-    print "speed_hz      =",gizmo.get_speed_hz()
-    print "Sending packets..."
+    print("spi_mode      =",gizmo.get_spi_mode())
+    print("lsb_first     =",gizmo.get_lsb_first())
+    print("bits_per_word =",gizmo.get_bits_per_word())
+    print("speed_hz      =",gizmo.get_speed_hz())
+    print("Sending packets...")
 
     while True:
         # Send 3 bytes and delay 1 mS
         # Send 3 zeros at 250KHz and strobe cs
         # Send 3 more bytes
-        print gizmo.io({"data":[0xFF]*3, "delay_usecs":1000}, {"data":3, "speed_hz":250000, "cs_change":True}, [0xF0, 0x55, 0x81])
+        print(gizmo.io({"data":[0xFF]*3, "delay_usecs":1000}, {"data":3, "speed_hz":250000, "cs_change":True}, [0xF0, 0x55, 0x81]))
         sleep(.1)

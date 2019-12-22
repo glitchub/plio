@@ -1,6 +1,7 @@
 # Driver for Linear LTC2991 E/I/T monitor
 # Supports single-ended, differential and temperature reads from all inputs
 
+from __future__ import print_function, division
 from i2c import i2c
 
 class ltc2991():
@@ -49,7 +50,7 @@ class ltc2991():
     def __uV(hi, lo, uV):
         n = ((hi << 8) | lo) & 0x3fff           # actual value in low 14 bits
         if hi & 0x40: n = -1-(n ^ 0x3fff)       # but invert if signed
-        return n * (uV/100000)                  # return microvolts
+        return n * (uV / 100000)                # return microvolts
 
     # Return celsius of temperature input 0 through 4, where 0 is internal temperature, 1 is T1, etc.
     # eta is the sensor diode ideality factor, if None then just use chip's default (1.004)
@@ -60,15 +61,15 @@ class ltc2991():
         rreg = [self.TEMP, self.V1_T1, self.V3_T2, self.V5_T3, self.V7_T4][input]
         hi, lo = self.i2c.io(rreg, 2)[0]        # get two byte result
         v = ((hi << 8) + lo) & 0x1fff
-        kelvin = float(v/16)
-        if eta is not None: kelvin *= (1.004/eta)
+        kelvin = v / 16
+        if eta is not None: kelvin *= (1.004 / eta)
         return kelvin - 273.15                  # return celsius
 
     # Return voltage on single-ended input 0 through 8, where 0 is internal VCC, 1 is V1, etc
     def voltage(self, input):
         assert 0 <= input <= 8
         self.__control(0x00, 0x00, 0x00)        # set controls for single-ended
-        self.__trigger(input+1/2)               # trigger 0->0, 1|2->1, 3|4->2, 5|6->3, 7|8->4
+        self.__trigger(input+1//2)              # trigger 0->0, 1|2->1, 3|4->2, 5|6->3, 7|8->4
         rreg = [self.VCC, self.V1_T1, self.V2_D1, self.V3_T2, self.V4_D2, self.V5_T3, self.V6_D3, self.V7_T4, self.V8_D4][input]
         hi, lo = self.i2c.io(rreg, 2)[0]        # get two-byte result
         return self.__uV(hi, lo, 305.18)        # 305.18 uV per step
@@ -85,5 +86,5 @@ class ltc2991():
 
 if __name__ == "__main__":
     chip = ltc2991(1, 0x48)
-    print "Ambient = %fC" % chip.temperature(0)
-    print "VCC = %fV" % (chip.voltage(0)*2,)
+    print("Ambient = %fC" % chip.temperature(0))
+    print("VCC = %fV" % (chip.voltage(0)*2,))

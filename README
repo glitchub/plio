@@ -1,0 +1,23 @@
+Python linkage to linux system I/O:
+
+    i2c.py provides the i2c object to interfaces with /dev/i2c-X devices
+
+    spi.py provides the spi object to interface with /dev/spidevX.X devices
+
+    gpio.py provides the gpio object to interface with /dev/gpiochipX devices.
+
+    gpio_sysfs.py also provides a gpio object with the same ABI as gpio.py, but uses the
+    /sysfs/class/gpio inteface. It is much slower than gpio.py, but allows gpio
+    states to be retained after program exit.
+
+Drivers for a number of I2C devices:
+
+    i2c_ad2420.py   - Analog Devices AD2420 A2B Transciever
+    i2c_ltc2945.py  - Linear LTC2945 Wide Range Power Monitor
+    i2c_ltc2991.py  - Linear LTC2991 E/I/T monitor
+    i2c_max6639.py  - MAX 6639 fan controller
+    i2c_n24c02.py   - ON N24C02 256 byte serial EEPROM
+    i2c_tca6408.py  - TI TCA6408 GPIO expander
+    i2c_tmp101.py   - TI TMP100/101 temperature sensor
+
+All modules support Python 2 or 3.

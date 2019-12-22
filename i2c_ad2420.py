@@ -1,6 +1,7 @@
 # Driver for Analog Devices AD2420 A2B Transciever
 # At this time just provides basic linkages to master, slave, and peripheral i2c interfaces.
 
+from __future__ import print_function, division
 from i2c import i2c
 
 class ad2420():
@@ -116,8 +117,8 @@ class ad2420():
     MBOX1B3         = 0x9B
 
     def __init__(self, bus, addr=0x68):
-        self.i2cbase = i2c(bus, addr)                   # The base address is for talking to master
-        self.i2cbus = i2c(bus, addr+1)                  # The bus address is for talking to selected slave, via the master
+        self.i2cbase = i2c(bus=bus, addr=addr)          # The base address is for talking to master
+        self.i2cbus = i2c(bus=bus, addr=addr+1)         # The bus address is for talking to selected slave, via the master
 
     # Perform I2C transaction(s) with the master device
     def master_io(self, *specs):
@@ -140,6 +141,6 @@ if __name__ == "__main__":
     chip = ad2420(bus=1, addr=0x6A)
     vendor, product, version = chip.master_io(ad2420.VENDOR,3)[0]
     chipid = chip.master_io(ad2420.CHIPID0,6)[0]
-    print "AD24%02X, vendor 0x%2X, version 0x%2X, id %s" % (product, vendor, version, ''.join("%02X" % b for b in chipid))
+    print("AD24%02X, vendor 0x%02X, version 0x%02X, id %s" % (product, vendor, version, ''.join("%02X" % b for b in chipid)))
     chip.master_io([ad2420.GPIOOEN,2])                  # set gpio01 low
     chip.master_io([ad2420.GPIODATCLR, 2])
