@@ -5,10 +5,12 @@
 #   set_fan_ config() for each fan
 #   set_pwm_mode() or set_rpm_mode() for each fan.
 
-from __future__ import print_function, division
-from i2c import i2c
+from __future__ import print_function
 
-class max6639():
+try: from i2c import i2c
+except: from .i2c import i2c
+
+class max6639:
 
     # registers, some may accept channel or fan index 1 or 2
     def TEMP(self ,n)       : return (0x00, 0x01)[n-1]
@@ -110,7 +112,7 @@ class max6639():
         l = self.i2c.io(self.XTEMP(channel),1)[0][0]    # read low first from reg 5 or 6
         if l & 1: return -1                             # diode fault?
         h = self.i2c.io(self.TEMP(channel),1)[0][0]     # read high from reg 0 or 1
-        return h+((l>>5)/8)                             # return float
+        return h+((l>>5)/8.0)                           # return float
 
     # Returns current pwm percent and rpm for indexed fan. rpm result is only
     # valid if fan in rpm mode.

@@ -38,7 +38,7 @@ def blist(data):
     if type(data) is not list: data=list(data)
     return data
 
-class i2c():
+class i2c:
 
     # init i2c controller, note bus == None enables stub operation
     def __init__(self, bus, addr, retries=None, timeout=None):

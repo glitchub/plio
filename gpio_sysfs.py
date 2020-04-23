@@ -2,7 +2,7 @@
 
 # This is an order of magnitude slower than gpio.py but allows persist gpios
 # after program exit.
-from __future__ import print_function, division
+from __future__ import print_function
 import os, re, time, atexit
 
 base="/sys/class/gpio"
@@ -40,7 +40,7 @@ def gpiochip(chip):
                 if f.readline().strip() == chip: return g
         raise Exception("No gpiochip label '%s'" % chip);
 
-class gpio():
+class gpio:
     # Open and manipulate gpio "line" of chip "chip". Options are:
     #   output     : True=gpio is an output, False=gpio is an input, None=use current configuration (default False)
     #   invert     : True=gpio is inverted, False=gpio not inverted, None=use current inversion (default False)

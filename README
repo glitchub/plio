@@ -20,4 +20,15 @@ Drivers for a number of I2C devices:
     i2c_tca6408.py  - TI TCA6408 GPIO expander
     i2c_tmp101.py   - TI TMP100/101 temperature sensor
 
-All modules support Python 2 or 3.
+Supports Python 2 or 3.
+
+Special Makefile targets:
+
+    'make clean' removes generated files.
+
+    'make install' adds a symlink to this directory in the python3 site
+    directory, so 'import plio' will work (must be root)
+
+    'make uninstall' removes the symlink (must be root).
+
+    'make lint' runs pylint3 across all .py files.

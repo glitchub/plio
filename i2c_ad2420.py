@@ -1,10 +1,12 @@
 # Driver for Analog Devices AD2420 A2B Transciever
 # At this time just provides basic linkages to master, slave, and peripheral i2c interfaces.
 
-from __future__ import print_function, division
-from i2c import i2c
+from __future__ import print_function
 
-class ad2420():
+try: from i2c import i2c
+except: from .i2c import i2c
+
+class ad2420:
 
     # registers
     CHIP            = 0x00

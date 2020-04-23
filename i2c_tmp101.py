@@ -1,9 +1,11 @@
 # Driver for TI TMP100/101 temperature sensor
 
-from __future__ import print_function, division
-from i2c import i2c
+from __future__ import print_function
 
-class tmp101():
+try: from i2c import i2c
+except: from .i2c import i2c
+
+class tmp101:
 
     # four registers
     TEMP    = 0
@@ -110,4 +112,3 @@ if __name__ == "__main__":
         if t.get_osalert(): print("ALERT!", end=" ")
         print("Temperature = %gC" % t.get_temperature())
         sleep(1)
-

@@ -1,6 +1,6 @@
 """ SPI control via /dev/spidev* """
 
-from __future__ import print_function, division
+from __future__ import print_function
 import os, fcntl
 from ctypes import *
 
@@ -50,7 +50,7 @@ def blist(data):
     if type(data) is not list: data=list(data)
     return data
 
-class spi():
+class spi:
     # Given a bus and chip select number, open SPI device and optionally init
     # various properties via ioctl
     def __init__(self, bus, chipselect, spi_mode=None, lsb_first=None, bits_per_word=None, speed_hz=None):

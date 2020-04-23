@@ -1,10 +1,12 @@
 # Driver for Linear LTC2991 E/I/T monitor
 # Supports single-ended, differential and temperature reads from all inputs
 
-from __future__ import print_function, division
-from i2c import i2c
+from __future__ import print_function
 
-class ltc2991():
+try: from i2c import i2c
+except: from .i2c import i2c
+
+class ltc2991:
 
     # Registers of interest
     TRIGGER     = 0x01
@@ -61,7 +63,7 @@ class ltc2991():
         rreg = [self.TEMP, self.V1_T1, self.V3_T2, self.V5_T3, self.V7_T4][input]
         hi, lo = self.i2c.io(rreg, 2)[0]        # get two byte result
         v = ((hi << 8) + lo) & 0x1fff
-        kelvin = v / 16
+        kelvin = v // 16
         if eta is not None: kelvin *= (1.004 / eta)
         return kelvin - 273.15                  # return celsius
 

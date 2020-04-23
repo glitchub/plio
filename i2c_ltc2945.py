@@ -13,10 +13,12 @@
 #    L     NC  =  6E
 #    L     L   =  6F
 
-from __future__ import print_function, division
-from i2c import i2c
+from __future__ import print_function
 
-class ltc2945():
+try: from i2c import i2c
+except: from .i2c import i2c
+
+class ltc2945:
 
     # Registers of interest
     CONTROL     = 0x00

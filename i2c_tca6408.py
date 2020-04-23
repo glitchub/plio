@@ -1,7 +1,9 @@
 # Driver for TI TCA6408 GPIO expander
 
-from __future__ import print_function, division
-from i2c import i2c
+from __future__ import print_function
+
+try: from i2c import i2c
+except: from .i2c import i2c
 
 class tca6408:
 

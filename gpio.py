@@ -3,7 +3,7 @@
 # Note gpio state will not be retained when the program exits, use gpio_sysfs
 # if you need that.
 
-from __future__ import print_function, division
+from __future__ import print_function
 import os, fcntl, glob
 from ctypes import *
 
@@ -42,7 +42,7 @@ GPIOHANDLE_SET_LINE_VALUES_IOCTL = 0xC040B409
 class gpiohandle_data(Structure):
     _fields_ = [("values", c_ubyte * GPIOHANDLES_MAX)]      # desired output or current input state (we only use the first one)
 
-class gpio():
+class gpio:
 
     # Initialize gpio "line" on gpiochip "chip".
     # Config options are:
@@ -90,7 +90,7 @@ class gpio():
         self.gpiohandle_reqest.lineoffsets[0] = self.line
         self.gpiohandle_reqest.flags = 0
         self.gpiohandle_reqest.lines = 1
-        self.gpiohandle_reqest.consumer_label = "gpio.py"
+        self.gpiohandle_reqest.consumer_label = b"gpio.py"
         # set the flags
         if self.output:
             self.gpiohandle_reqest.flags |= GPIOHANDLE_REQUEST_OUTPUT

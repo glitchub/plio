@@ -1,10 +1,13 @@
 # Driver for ON N24C02 256 byte serial EEPROM
 
-from __future__ import print_function, division
-from i2c import i2c, blist
+from __future__ import print_function
+
+try: from i2c import i2c, blist
+except: from .i2c import i2c, blist
+
 import time
 
-class n24c02():
+class n24c02:
     def __init__(self, bus, addr=0xa0):
         self.addr = addr
         self.i2c = i2c(bus=bus, addr=addr)
