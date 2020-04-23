@@ -1,29 +1,28 @@
-# 'default' target does nothing
 .PHONY: default
-default:
+default: # Nothing to do!
 
-# 'clean' removes generated files
 .PHONY: clean
 clean:; rm -rf *.pyc __pycache__
 
 .PHONY: lint
 lint:; pylint3 -E -dno-member *.py
 
-# 'install' symlinks this directory into the first python3 site directory
-# so these can be imported as modules
+# install and uninstall require root
+ifeq (${USER},root)
 site := $(shell python3 -c'import site; print(site.getsitepackages()[0])')
-link := ${site}/$(notdir ${CURDIR}) # Don't use ${PWD}!
-
-.PHONY: install
-install:
-ifneq (${site},)
-	mkdir -p ${site}
-	ln -sf ${CURDIR} ${link}
+ifeq ($(strip ${site}),)
+$(error Unable to get python package directory)
 endif
 
-# 'uninstall' deletes the package symlink
+# pre-compile modules and symlink this directory as a package
+.PHONY: install
+install:
+	rm -rf __pycache__
+	py3compile *.py
+	ln -sf ${CURDIR} ${site}
+
+# delete package symlink
 .PHONY: uninstall
-uninstall: clean
-ifneq (${site},)
-	rm -f ${link}
+uninstall: clean; rm -f ${site}/$(notdir ${CURDIR})
+
 endif
